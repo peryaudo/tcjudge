@@ -1,0 +1,27 @@
+Arena使わないでするめのコードをジャッジできる奴です。
+
+Ruby 1.9.3以降とMechanizeとNokogiriとかあとこのへんを入れるためにRubyGemsと、任意でBundlerが必要です。
+
+もうC++版みたいに変なでかいライブラリとか要求してこないので是非使って下さい。
+簡単に拡張できるようになってるのでマイナー言語(例:VB)のファンの人は対応させてpull requestしてください（他力本願)
+
+* かんたん！つかいかた
+いろいろと汚れてもよくて、RubyとRubyGemsとBundlerが入ってる状況なら
+
+make install
+
+するだけです。
+
+あとはてきとうに
+
+tcjudge BallsConverter.cpp
+
+とか打てばいいです。
+
+tcjudge create BallsConverter.cpp
+
+とかするとテンプレートも作れます。
+
+* 結論
+Arenaはクソ。
+

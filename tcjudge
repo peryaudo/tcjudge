@@ -1,0 +1,602 @@
+#!/usr/bin/env ruby
+
+# TopCoder Local Judge by peryaudo
+# MIT License
+
+require 'io/console'
+require 'tmpdir'
+require 'mechanize'
+
+class TopCoderScraper
+  def initialize(tmpdir)
+    @logged_in = false
+    @tmpdir = tmpdir
+  end
+
+  # return false if succeeded
+  def login(user_name, password)
+    if @logged_in
+      return false  
+    end
+ 
+    @agent = Mechanize.new
+
+    next_page_uri = 'http://apps.topcoder.com/wiki/display/tc/Algorithm+Overview'
+    login_page_uri = 'http://community.topcoder.com/tc?&module=Login'
+
+    login_page = @agent.get(login_page_uri)
+
+    wiki_page = login_page.form_with(:name => 'frmLogin') do |f|
+      f.action = 'http://community.topcoder.com/tc'
+      f['nextpage'] = next_page_uri
+      f['username'] = user_name
+      f['password'] = password
+    end.click_button
+
+    if wiki_page.uri.to_s == next_page_uri
+      # succeeded
+      @logged_in = true
+      return false 
+    else
+      return true
+    end
+
+  end
+
+  def is_cache_available(problem_name, required)
+    if required.include?(:problem_definition) && !File.exist?("#{ @tmpdir }/#{ problem_name }.bpd")
+      return false
+    end
+    if required.include?(:test_cases) && !File.exist?("#{ @tmpdir }/#{ problem_name }.btestcase")
+      return false
+    end
+    return true
+  end
+
+  def get_problem_definition(problem_name)
+    cache_file_name = "#{ @tmpdir }/#{ problem_name }.bpd"
+
+    root = nil
+    if File.exist?(cache_file_name)
+      return Marshal.restore(open(cache_file_name, 'rb'))
+      #root = Mechanize::Page.new(nil, nil, open(cache_file_name, 'r').read, '200', @agent).root
+
+    else
+      unless @logged_in
+        return nil
+      end
+
+      statement_uri = get_problem_page_uri(problem_name).sub('/tc?module=ProblemDetail', '/stat?c=problem_statement')
+      root = @agent.get(statement_uri).root
+
+      #open(cache_file_name, 'w').write root.inner_html
+    end
+
+    table = root.xpath('//table[contains(tr/td/text(), "Class:")]').first
+
+    problem_definition = {}
+
+    table.xpath('tr').each do |tr|
+      td = tr.xpath('td/text()').map { |td| td.content }
+      if td.length != 2
+        next
+      end
+
+      case td[0]
+      when 'Class:'
+        problem_definition[:class_name] = td[1]
+      when 'Method:'
+        problem_definition[:method_name] = td[1]
+      when 'Returns:'
+        problem_definition[:return_type] = td[1]
+      when 'Method signature:'
+        td[1].match(/\((.+)\)/) do |backward|
+          problem_definition[:parameters] = backward[1].split(',').map do |raw_parameter|
+            parameter = raw_parameter.strip.split(' ')
+            {:type => parameter[0], :name => parameter[1]}
+          end
+        end
+      end
+    end
+
+    unless File.exist?(cache_file_name)
+      Marshal.dump problem_definition, open(cache_file_name, 'wb')
+    end
+
+    return problem_definition
+  end
+
+  def get_test_cases(problem_name)
+    cache_file_name = "#{ @tmpdir }/#{ problem_name }.btestcase"
+
+    root = nil
+    if File.exist?(cache_file_name)
+      #root = Mechanize::Page.new(nil, nil, open(cache_file_name, 'r').read, '200', @agent).root
+      return Marshal.restore(open(cache_file_name, 'rb'))
+
+    else
+      unless @logged_in
+        return nil
+      end
+
+      solution_uri = get_solution_page_uri(get_problem_page_uri(problem_name))
+
+      root = @agent.get(solution_uri).root
+
+      #open(cache_file_name, 'w').write root.inner_html
+    end
+
+    test_cases = []
+
+    table = root.xpath('//comment()[contains(., "System Testing")]/following-sibling::table').first
+
+    table.xpath('tr[@valign="top"]').each do |tr|
+      test_case = tr.xpath('td[@class="statText"]/text()').map { |td| td.content.gsub(/(\r|\n)/, ' ') }
+      test_cases.push({:input => test_case[0], :output => test_case[1]})
+    end
+
+    unless File.exist?(cache_file_name)
+      Marshal.dump test_cases, open(cache_file_name, 'wb')
+    end
+    return test_cases
+  end
+
+  private
+  def get_problem_page_uri(problem_name)
+    unless @logged_in
+      return nil
+    end
+
+    unless @problem_page_uri_cache
+      @problem_page_uri_cache = {}
+    end
+
+    if @problem_page_uri_cache.include?(problem_name)
+      return @problem_page_uri_cache[problem_name]
+    end
+
+    @agent.get('http://community.topcoder.com/tc?module=ProblemArchive&class=' + problem_name) do |page|
+      return @problem_page_uri_cache[problem_name] = page.link_with(:href => /^\/tc\?module\=ProblemDetail/).href
+    end
+  end
+
+  def get_solution_page_uri(problem_page_uri)
+    @agent.get(problem_page_uri) do |page|
+      return page.link_with(:href => /\/stat\?c\=problem_solution/).href
+    end
+  end
+end
+
+CompileError = Class.new(StandardError)
+
+class TopCoderCXXTester
+  def get_template()
+    return <<EOS
+#include <vector>
+#include <string>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <iostream>
+#include <cmath>
+#include <climits>
+#include <queue>
+#include <stack>
+#include <numeric>
+
+using namespace std;
+
+class #{ @problem_definition[:class_name] } {
+public:
+  #{ generate_signature() } {
+  }
+};
+EOS
+  end
+
+  def convert_type(type_name)
+    cxx_type_names = {'long' => 'long long', 'String' => 'string'}
+
+    is_array = false
+    base_type_name = type_name
+    if type_name =~ /\[\]$/
+      is_array = true
+      base_type_name = type_name.sub(/\[\]$/, '').strip
+    end
+
+    cxx_type_name = nil
+    if cxx_type_names.include?(base_type_name)
+      cxx_type_name = cxx_type_names[base_type_name]
+    else
+      cxx_type_name = base_type_name
+    end
+
+    if is_array
+      cxx_type_name = "vector<#{ cxx_type_name }>"
+    end
+
+    return cxx_type_name
+  end
+
+  def generate_signature()
+    return convert_type(@problem_definition[:return_type]) + ' ' + @problem_definition[:method_name] + '(' + \
+      (@problem_definition[:parameters].map { |parameter| convert_type(parameter[:type]) + ' ' + parameter[:name] }).join(', ') + ')'
+  end
+
+  def generate_tester()
+    tester = <<EOS
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <cmath>
+
+using namespace std;
+
+#{ generate_result_comparison_function() }
+#{ generate_result_dumper_function() }
+#{ generate_limitter_function() }
+
+EOS
+
+    @test_cases.length.times do |index|
+      tester += generate_tester_function(index)
+    end
+
+
+    tester += <<EOS
+int main(int argc, char *argv[])
+{
+  setLimit();
+  switch(atoi(argv[1])) {
+EOS
+
+  @test_cases.length.times do |index|
+    tester += "    case #{ index }: return test#{ index }();\n"
+  end
+
+  tester += <<EOS
+  }
+}
+EOS
+
+    return tester
+  end
+
+  def generate_result_comparison_function
+    cxx_type = convert_type(@problem_definition[:return_type])
+
+    func = "bool compareResult(#{ cxx_type } from, #{ cxx_type } to)\n{\n"
+    case cxx_type
+    when 'double'
+      func += "  return fabs(from - to) <= 1e-9;\n";
+    when 'vector<double>'
+      func += <<EOS
+  if (from.size() != to.size()) return false;
+  bool res = true;
+  for (int i = 0; i < from.size(); ++i) {
+    if (!(fabs(from[i] - to[i]) <= 1e-9)) {
+      res = false;
+      break;
+    }
+  }
+  return res;
+EOS
+    else
+      func += "  return from == to;\n"
+    end
+
+    func += "}\n"
+
+    return func
+  end
+
+  def generate_result_dumper_function
+    cxx_type = convert_type(@problem_definition[:return_type])
+
+    func = "void dumpResult(#{ cxx_type } result_)\n{\n"
+    if cxx_type =~ /^vector/
+      func += <<EOS
+  cout<<"{";
+  for (int i = 0; i < result_.size(); ++i) {
+    const #{cxx_type.sub(/^vector\<(.+)\>$/, '\\1')}& result = result_[i];
+EOS
+    else
+      func += "  const #{cxx_type.sub(/^vector\<(.+)\>$/, '\\1')}& result = result_;\n"
+    end
+
+    if cxx_type == 'string' || cxx_type == 'vector<string>'
+      func += '  cout<<"\""<<result<<"\"";'
+      func += "\n"
+    else
+      func += "  cout<<result;\n"
+    end
+
+    if cxx_type =~ /^vector/
+      func += <<EOS
+    cout<<(i == result.size() - 1 ? "\n" : ", ");
+  }
+  cout<<"}";
+EOS
+    end
+
+    func += "}\n"
+
+    return func
+  end
+
+  def generate_limitter_function
+    return "void setLimit() {return;}\n"
+  end
+
+  def generate_tester_function(index)
+    return <<EOS
+int test#{ index }(void)
+{
+  #{ @problem_definition[:class_name] } target;
+#{ generate_parameters(@test_cases[index][:input]) }
+#{ generate_tester_call() }
+#{ generate_parameter(@problem_definition[:return_type], "expected", @test_cases[index][:output]) }
+  if (compareResult(result, expected)) {
+    return 0;
+  } else {
+    dumpResult(result);
+    return 1;
+  }
+}
+EOS
+  end
+
+  # strictly parse comma separated parameters
+  def split_parameters(parameters_string)
+
+    depth = 0
+    prev = 0
+    start = false
+
+    parameters = []
+
+    parameters_string.length.times do |index|
+      case parameters_string[index]
+      when '"'
+        if start
+          depth += 1
+        else
+          depth -= 1
+        end
+        start = !start
+      when '{'
+        depth += 1
+      when '}'
+        depth -= 1
+      when ','
+        if depth == 0
+          parameters.push(parameters_string[prev .. (index - 1)].strip)
+          prev = index + 1
+        end
+      end
+    end
+
+    parameters.push(parameters_string[prev .. parameters_string.length - 1].strip)
+    return parameters
+  end
+
+  def generate_parameters(parameters_string)
+    result = ''
+    parameters = split_parameters(parameters_string)
+
+    @problem_definition[:parameters].each_with_index do |parameter, index|
+      result += generate_parameter(parameter[:type], "param#{index}", parameters[index])
+    end
+
+    return result
+  end
+
+  def generate_primary_value(type, value)
+    case type
+    when 'String'
+      return "string(#{value})"
+    when 'long'
+      return "#{value}LL"
+    else
+      return value
+    end
+  end
+
+  def generate_parameter(type, name, value)
+    if type =~ /\[\]$/
+      # vector
+      element_type = type.sub(/\[\]$/, '')
+      elements = split_parameters(value[1, value.length - 2])
+      parameter = "  #{ convert_type(type) } #{ name }(#{ elements.length });\n"
+      elements.each_with_index do |element, index|
+        parameter += "  #{ name }[#{index}] = #{ generate_primary_value(element_type, element)};\n"
+      end
+      return parameter
+    else
+      return "  #{ convert_type(type) } #{ name } = #{ generate_primary_value(type, value) };\n"
+    end
+  end
+
+  def generate_tester_call
+    return "  #{ convert_type(@problem_definition[:return_type]) } result = target.#{ @problem_definition[:method_name] }(" +
+      (0 .. (@problem_definition[:parameters].length - 1)).map { |index| "param#{ index }" }.join(', ') + ");"
+  end
+
+  def initialize(problem_definition, test_cases = nil, tmpdir = nil, code = nil)
+    @problem_definition = problem_definition
+
+    if test_cases != nil && tmpdir != nil && code != nil
+      @test_cases = test_cases
+      @tmpdir = tmpdir
+
+      tester_source_name = "#{@tmpdir}/tester.cpp"
+      tester_name = "#{@tmpdir}/tester"
+
+      open(tester_source_name, 'w').write "#{ code }\n#{ generate_tester() }"
+      unless system("g++ #{tester_source_name} -o #{tester_name}")
+        raise CompileError
+      end
+    end
+  end
+
+  def run(index)
+    tester_name = "#{@tmpdir}/tester"
+    if system("#{tester_name} #{index}")
+      return :AC
+    else
+      case $?.exitstatus
+      when 1
+        return :WA
+      end
+    end
+  end
+end
+
+class TCJudge
+  def start(argv)
+    warn 'TopCoder Local Judge by peryaudo'
+    if argv.length != 1 && argv.length != 2
+      warn 'usage: tcjudge MyProblemSolution.cpp'
+      warn "       tcjudge [command] MyProblemSolution.cpp\n"
+      warn 'Commands: create - Create template for the problem'
+      warn '          judge - judge the file'
+      return
+    end
+
+    if argv.length == 1
+      judge argv[0]
+      return
+    end
+
+    if argv.length == 2
+      case argv[0]
+        when 'create'
+          write_template argv[1]
+        when 'judge'
+          judge argv[1]
+        else
+          warn 'tcjudge: invalid command line option'
+      end
+    end
+  end
+
+  def write_template(file_name)
+    open file_name, 'w' do |destination|
+      problem_name = File.basename(file_name, '.cpp')
+
+      scraper = TopCoderScraper.new(Dir.tmpdir)
+      unless scraper.is_cache_available(problem_name, [:problem_definition])
+        if login(scraper)
+          return
+        end
+      end
+
+      $stderr.print 'Obtaining problem definition...'
+      problem_definition = nil
+      begin
+        problem_definition = scraper.get_problem_definition(problem_name)
+      rescue
+        warn "\ntcjudge: couldn't retrive the problem definition of #{ problem_name }."
+        return
+      end
+      warn 'ok.'
+
+      $stderr.print 'Writing template...'
+
+      destination.write TopCoderCXXTester.new(problem_definition).get_template()
+      warn 'ok.'
+    end
+  end
+
+  def judge(file_name)
+    code = nil
+    begin
+      open file_name, 'r' do |file|
+        code = file.read
+      end
+    rescue
+      warn "tcjudge: file #{ file_name } couldn't be opened or doesn't exist."
+      return
+    end
+
+    problem_name = File.basename(file_name, '.cpp')
+
+    scraper = TopCoderScraper.new(Dir.tmpdir)
+    unless scraper.is_cache_available(problem_name, [:problem_definition, :test_cases])
+      if login(scraper)
+        return
+      end
+    end
+
+    $stderr.print 'Obtaining problem definition...'
+    problem_definition = scraper.get_problem_definition(problem_name)
+    warn 'ok.'
+
+    $stderr.print 'Obtaining testcases...'
+    test_cases = scraper.get_test_cases(problem_name)
+    warn " total #{ test_cases.length } cases."
+
+    tester = nil
+    begin
+      tester = TopCoderCXXTester.new(problem_definition, test_cases, Dir.tmpdir, code)
+    rescue CompileError
+      warn 'tcjudge: compile error'
+      return
+    end
+
+    succeeded = true
+    test_cases.length.times do |index|
+      print "Test Case #{ index } ..."
+      result = tester.run(index)
+      case result
+      when :AC
+        puts 'Accepted.'
+      when :WA
+        puts 'WRONG ANSWER.'
+        succeeded = false
+      when :TLE
+        puts 'TIME LIMIT EXCEEDED.'
+        succeeded = false
+      when :MLE
+        puts 'MEMORY LIMIT EXCEEDED.'
+        succeeded = false
+      end
+
+      unless succeeded
+        puts "Test Case: #{ test_cases[index][:input] }"
+        puts "Expected Output: #{ test_cases[index][:output] }"
+        break
+      end
+    end
+
+    if succeeded
+      warn 'All Tests Succeeded.'
+    else
+      warn 'Testing Failed.'
+    end
+
+    return
+  end
+
+  # return false if succeeded
+  def login(scraper)
+    $stderr.print 'User Name: '
+    user_name = $stdin.gets().strip
+
+    $stderr.print 'Password: '
+    password = $stdin.noecho(&:gets).strip
+
+    unless scraper.login(user_name, password)
+      warn "\ntcjudge: login succeeded"
+      return false
+    else
+      warn "\ntcjudge: login failed"
+      return true
+    end
+  end
+end
+
+tcjudge = TCJudge.new
+tcjudge.start ARGV
+
