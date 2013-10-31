@@ -59,7 +59,6 @@ class TopCoderScraper
     root = nil
     if File.exist?(cache_file_name)
       return Marshal.restore(open(cache_file_name, 'rb'))
-      #root = Mechanize::Page.new(nil, nil, open(cache_file_name, 'r').read, '200', @agent).root
 
     else
       unless @logged_in
@@ -69,7 +68,6 @@ class TopCoderScraper
       statement_uri = get_problem_page_uri(problem_name).sub('/tc?module=ProblemDetail', '/stat?c=problem_statement')
       root = @agent.get(statement_uri).root
 
-      #open(cache_file_name, 'w').write root.inner_html
     end
 
     table = root.xpath('//table[contains(tr/td/text(), "Class:")]').first
@@ -111,7 +109,6 @@ class TopCoderScraper
 
     root = nil
     if File.exist?(cache_file_name)
-      #root = Mechanize::Page.new(nil, nil, open(cache_file_name, 'r').read, '200', @agent).root
       return Marshal.restore(open(cache_file_name, 'rb'))
 
     else
@@ -123,7 +120,6 @@ class TopCoderScraper
 
       root = @agent.get(solution_uri).root
 
-      #open(cache_file_name, 'w').write root.inner_html
     end
 
     test_cases = []
@@ -188,8 +184,8 @@ using namespace std;
 
 class #{ @problem_definition[:class_name] } {
 public:
-  #{ generate_signature() } {
-  }
+	#{ generate_signature() } {
+	}
 };
 EOS
   end
@@ -441,13 +437,26 @@ EOS
   end
 
   def run(index)
+    # TODO: Don't repeat yourself!!!!
     tester_name = "#{@tmpdir}/tester"
+    tester_source_name = "#{@tmpdir}/tester.cpp"
+    tester_name = "#{@tmpdir}/tester"
+
     if system("#{tester_name} #{index}")
       return :AC
     else
       case $?.exitstatus
       when 1
         return :WA
+      else
+        if $?.exited?
+          return :UNKNOWN_ERROR
+        else
+          puts "\nCompiller Options: g++ #{tester_source_name} -o #{tester_name}"
+          puts "Tester Options: #{tester_name} #{index}"
+          puts "Exit Status: #{$?}"
+          return :RUNTIME_ERROR
+        end
       end
     end
   end
@@ -560,6 +569,12 @@ class TCJudge
         succeeded = false
       when :MLE
         puts 'MEMORY LIMIT EXCEEDED.'
+        succeeded = false
+      when :RUNTIME_ERROR
+        puts 'RUNTIME ERROR.'
+        succeeded = false
+      else
+        puts 'UNKNOWN ERROR.'
         succeeded = false
       end
 
