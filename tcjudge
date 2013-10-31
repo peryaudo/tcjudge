@@ -5,6 +5,7 @@
 
 require 'io/console'
 require 'tmpdir'
+require 'yaml'
 require 'mechanize'
 
 class TopCoderScraper
@@ -310,7 +311,7 @@ EOS
 
     if cxx_type =~ /^vector/
       func += <<EOS
-    cout<<(i == result.size() - 1 ? "\n" : ", ");
+    cout<<(i == result_.size() - 1 ? "\\n" : ", ");
   }
   cout<<"}";
 EOS
@@ -463,6 +464,15 @@ EOS
 end
 
 class TCJudge
+  def initialize
+    tcjudegrc_file_name = File.expand_path('~/.tcjudgerc')
+    if File.exist?(tcjudegrc_file_name)
+      @config = YAML.load_file(tcjudegrc_file_name)
+    else
+      @config = {}
+    end
+  end
+
   def start(argv)
     warn 'TopCoder Local Judge by peryaudo'
     if argv.length != 1 && argv.length != 2
@@ -596,11 +606,21 @@ class TCJudge
 
   # return false if succeeded
   def login(scraper)
-    $stderr.print 'User Name: '
-    user_name = $stdin.gets().strip
+    user_name = nil
+    if @config.include?('user_name')
+      user_name = @config['user_name']
+    else
+      $stderr.print 'User Name: '
+      user_name = $stdin.gets().strip
+    end
 
-    $stderr.print 'Password: '
-    password = $stdin.noecho(&:gets).strip
+    password = nil
+    if @config.include?('password')
+      password = @config['password']
+    else
+      $stderr.print 'Password: '
+      password = $stdin.noecho(&:gets).strip
+    end
 
     unless scraper.login(user_name, password)
       warn "\ntcjudge: login succeeded"
