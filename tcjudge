@@ -153,7 +153,10 @@ class TopCoderScraper
     end
 
     @agent.get('http://community.topcoder.com/tc?module=ProblemArchive&class=' + problem_name) do |page|
-      return @problem_page_uri_cache[problem_name] = page.link_with(:href => /^\/tc\?module\=ProblemDetail/).href
+      return @problem_page_uri_cache[problem_name] =
+        page.root.xpath(
+          '//tr[starts-with(normalize-space(td/a/text()), "' + problem_name +
+          '")]/td/a[starts-with(@href, "/tc?module=ProblemDetail")]/@href').first.content
     end
   end
 
