@@ -504,6 +504,11 @@ class TCJudge
   end
 
   def write_template(file_name)
+    if File.exist?(file_name)
+      warn "tcjudge: file #{ file_name } already exists."
+      return
+    end
+
     open file_name, 'w' do |destination|
       problem_name = File.basename(file_name, '.cpp')
 
