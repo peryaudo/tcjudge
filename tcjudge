@@ -509,28 +509,29 @@ class TCJudge
       return
     end
 
-    open file_name, 'w' do |destination|
-      problem_name = File.basename(file_name, '.cpp')
+    problem_name = File.basename(file_name, '.cpp')
 
-      scraper = TopCoderScraper.new(Dir.tmpdir)
-      unless scraper.is_cache_available(problem_name, [:problem_definition])
-        if login(scraper)
-          return
-        end
-      end
-
-      $stderr.print 'Obtaining problem definition...'
-      problem_definition = nil
-      begin
-        problem_definition = scraper.get_problem_definition(problem_name)
-      rescue
-        warn "\ntcjudge: couldn't retrive the problem definition of #{ problem_name }."
+    scraper = TopCoderScraper.new(Dir.tmpdir)
+    unless scraper.is_cache_available(problem_name, [:problem_definition])
+      if login(scraper)
         return
       end
-      warn 'ok.'
+    end
 
-      $stderr.print 'Writing template...'
+    $stderr.print 'Obtaining problem definition...'
+    problem_definition = nil
+    begin
+      problem_definition = scraper.get_problem_definition(problem_name)
+    rescue
+      warn "\ntcjudge: couldn't retrive the problem definition of #{ problem_name }."
+      return
+    end
 
+    warn 'ok.'
+
+    $stderr.print 'Writing template...'
+
+    open file_name, 'w' do |destination|
       destination.write TopCoderCXXTester.new(problem_definition).get_template()
       warn 'ok.'
     end
