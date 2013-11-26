@@ -162,7 +162,7 @@ class TopCoderScraper
 
   def get_solution_page_uri(problem_page_uri)
     @agent.get(problem_page_uri) do |page|
-      return page.link_with(:href => /\/stat\?c\=problem_solution/).href
+      return page.link_with(:href => /\/stat\?c\=problem_solution.+cr=[0-9]+/).href
     end
   end
 end
