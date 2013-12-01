@@ -436,11 +436,27 @@ EOS
       tester_source_name = "#{@tmpdir}/tester.cpp"
       tester_name = "#{@tmpdir}/tester"
 
-      open(tester_source_name, 'w').write "#{ code }\n#{ generate_tester() }"
+      open(tester_source_name, 'w').write "#{ perform_cut(code) }\n#{ generate_tester() }"
       unless system("#{compiler} #{tester_source_name} -o #{tester_name}")
         raise CompileError
       end
     end
+  end
+
+  def perform_cut(code)
+    return code.split(/r?\n/).inject(['', true]) do |succ, cur|
+      if cur =~ /^\/\/ CUT begin/
+        [succ[0], false]
+      elsif cur =~ /^^\/\/ CUT end/
+        [succ[0], true]
+      else
+        if succ[1] == true
+          [succ[0] + "\n" + cur, succ[1]]
+        else
+          succ
+        end
+      end
+    end.first
   end
 
   def run(index)
