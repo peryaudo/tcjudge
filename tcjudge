@@ -70,9 +70,12 @@ class TopCoderScraper
 
     end
 
-    table = root.xpath('//table[contains(tr/td/text(), "Class:")]').first
-
     problem_definition = {}
+
+    problem_definition[:points] = @agent.get(get_problem_page_uri(problem_name)). \
+      root.xpath('//tr[contains(td/text(), "Point Value")]/td/text()').drop(1).map { |td| td.content.to_i }
+
+    table = root.xpath('//table[contains(tr/td/text(), "Class:")]').first
 
     table.xpath('tr').each do |tr|
       td = tr.xpath('td/text()').map { |td| td.content }
@@ -208,11 +211,12 @@ EOS
   end
 
   def print_points(code)
-    # TODO: to fix fixed 250
     code.match(/^\/\/ TIMESTAMP: ([0-9]+)$/) do |backward|
       seconds = Time.now.to_i - backward[1].to_i
-      points = convert_seconds_to_points(seconds, 250.0)
-      warn "Score: #{ sprintf('%.2f', points) } / 250 (#{ seconds } secs)"
+      @problem_definition[:points].each_with_index do |total, i|
+        points = convert_seconds_to_points(seconds, total)
+        warn "Score: #{ sprintf('%.2f', points) } / #{ total } (#{ seconds } secs)"
+      end
     end
     return
   end
