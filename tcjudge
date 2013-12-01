@@ -186,6 +186,8 @@ class TopCoderCXXTester
 
 using namespace std;
 
+#{ generate_timestamp() }
+
 class #{ @problem_definition[:class_name] } {
 public:
 	#{ generate_signature() } {
@@ -195,6 +197,31 @@ EOS
     else
       return instance_eval(&template_proc)
     end
+  end
+
+  def generate_timestamp
+    return <<EOS
+// CUT begin
+// TIMESTAMP: #{ Time.now.to_i }
+// CUT end
+EOS
+  end
+
+  def print_points(code)
+    # TODO: to fix fixed 250
+    code.match(/^\/\/ TIMESTAMP: ([0-9]+)$/) do |backward|
+      seconds = Time.now.to_i - backward[1].to_i
+      points = convert_seconds_to_points(seconds)
+      warn "Score: #{ sprintf('%.2f', points) } / 250 (#{ seconds } secs)"
+    end
+    return
+  end
+
+  def convert_seconds_to_points(seconds)
+    mp = 250.0
+    tt = 60.0
+    pt = seconds / 60.0
+    return mp * (0.3 + (0.7 * tt ** 2) / (10.0 * pt ** 2 + tt **2))
   end
 
   def convert_type(type_name)
@@ -647,6 +674,8 @@ class TCJudge
     else
       warn 'Testing Failed.'
     end
+
+    tester.print_points(code)
 
     return
   end
