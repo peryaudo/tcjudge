@@ -211,14 +211,13 @@ EOS
     # TODO: to fix fixed 250
     code.match(/^\/\/ TIMESTAMP: ([0-9]+)$/) do |backward|
       seconds = Time.now.to_i - backward[1].to_i
-      points = convert_seconds_to_points(seconds)
+      points = convert_seconds_to_points(seconds, 250.0)
       warn "Score: #{ sprintf('%.2f', points) } / 250 (#{ seconds } secs)"
     end
     return
   end
 
-  def convert_seconds_to_points(seconds)
-    mp = 250.0
+  def convert_seconds_to_points(seconds, mp)
     tt = 60.0
     pt = seconds / 60.0
     return mp * (0.3 + (0.7 * tt ** 2) / (10.0 * pt ** 2 + tt **2))
@@ -514,6 +513,10 @@ end
 
 class TCJudge
   def initialize
+    @languages = { :CXX => TopCoderCXXTester, :Java => nil, :CS => nil, :VB => nil }
+    @extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
+                   '.java' => :Java, '.cs' => :CS, '.vb' => :VB }
+
     tcjudegrc_file_name = File.expand_path('~/.tcjudgerc')
     if File.exist?(tcjudegrc_file_name)
       instance_eval File.read(tcjudegrc_file_name)
@@ -541,6 +544,8 @@ class TCJudge
           write_template argv[1]
         when 'judge'
           judge argv[1]
+        when 'clean'
+          clean argv[1]
         else
           warn 'tcjudge: invalid command line option'
       end
@@ -583,6 +588,11 @@ class TCJudge
     end
   end
 
+  def clean(file_name)
+    print TopCoderCXXTester.new(nil).perform_cut(open(file_name, 'r').read)
+    return
+  end
+
   def judge(file_name)
     code = nil
     begin
@@ -594,17 +604,13 @@ class TCJudge
       return
     end
 
-    languages = { :CXX => TopCoderCXXTester, :Java => nil, :CS => nil, :VB => nil }
-    extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
-                   '.java' => :Java, '.cs' => :CS, '.vb' => :VB }
-
     extension = File.extname(file_name)
-    unless extensions.include?(extension)
+    unless @extensions.include?(extension)
       warn 'tcjudge: cannot detect the language'
       return
     end
 
-    language = languages[extensions[extension]]
+    language = @languages[@extensions[extension]]
 
     if language.nil?
       warn 'tcjudge: the language is not supported yet'
@@ -631,8 +637,8 @@ class TCJudge
     tester = nil
     begin
       @compiler ||= {}
-      @compiler[extensions[extension]] ||= 'g++'
-      tester = language.new(problem_definition, test_cases, Dir.tmpdir, code, @compiler[extensions[extension]])
+      @compiler[@extensions[extension]] ||= 'g++'
+      tester = language.new(problem_definition, test_cases, Dir.tmpdir, code, @compiler[@extensions[extension]])
     rescue CompileError
       warn 'tcjudge: compile error'
       return
