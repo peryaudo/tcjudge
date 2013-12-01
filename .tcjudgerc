@@ -1,0 +1,30 @@
+@user_name = 'yourusernamehere'
+@password = yourpasswordhere'
+
+@compiler = { :CXX => 'clang++' }
+
+@template = {
+	:CXX => Proc.new { <<TEMPLATE
+#include <vector>
+#include <string>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <iostream>
+#include <cmath>
+#include <climits>
+#include <queue>
+#include <stack>
+#include <numeric>
+
+using namespace std;
+
+class #{ @problem_definition[:class_name] } {
+public:
+	#{ generate_signature() } {
+	}
+};
+
+TEMPLATE
+	}
+}
