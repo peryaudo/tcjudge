@@ -422,10 +422,10 @@ EOS
       (0 .. (@problem_definition[:parameters].length - 1)).map { |index| "param#{ index }" }.join(', ') + ");"
   end
 
-  def initialize(problem_definition, test_cases = nil, tmpdir = nil, code = nil)
+  def initialize(problem_definition, test_cases = nil, tmpdir = nil, code = nil, compiler = nil)
     @problem_definition = problem_definition
 
-    if test_cases != nil && tmpdir != nil && code != nil
+    if test_cases != nil && tmpdir != nil && code != nil && compiler != nil
       @test_cases = test_cases
       @tmpdir = tmpdir
 
@@ -433,7 +433,7 @@ EOS
       tester_name = "#{@tmpdir}/tester"
 
       open(tester_source_name, 'w').write "#{ code }\n#{ generate_tester() }"
-      unless system("g++ #{tester_source_name} -o #{tester_name}")
+      unless system("#{compiler} #{tester_source_name} -o #{tester_name}")
         raise CompileError
       end
     end
@@ -564,7 +564,9 @@ class TCJudge
 
     tester = nil
     begin
-      tester = TopCoderCXXTester.new(problem_definition, test_cases, Dir.tmpdir, code)
+      @compiler ||= {}
+      @compiler[:CXX] ||= 'g++'
+      tester = TopCoderCXXTester.new(problem_definition, test_cases, Dir.tmpdir, code, @compiler[:CXX])
     rescue CompileError
       warn 'tcjudge: compile error'
       return
