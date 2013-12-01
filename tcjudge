@@ -169,8 +169,9 @@ end
 CompileError = Class.new(StandardError)
 
 class TopCoderCXXTester
-  def get_template()
-    return <<EOS
+  def get_template(template_proc)
+    if template_proc.nil?
+      return <<EOS
 #include <vector>
 #include <string>
 #include <map>
@@ -191,6 +192,9 @@ public:
 	}
 };
 EOS
+    else
+      return instance_eval(&template_proc)
+    end
   end
 
   def convert_type(type_name)
@@ -529,7 +533,9 @@ class TCJudge
     $stderr.print 'Writing template...'
 
     open file_name, 'w' do |destination|
-      destination.write TopCoderCXXTester.new(problem_definition).get_template()
+      @template ||= {}
+      @template[:CXX] ||= nil
+      destination.write TopCoderCXXTester.new(problem_definition).get_template(@template[:CXX])
       warn 'ok.'
     end
   end
