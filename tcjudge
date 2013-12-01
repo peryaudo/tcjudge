@@ -562,7 +562,20 @@ class TCJudge
       return
     end
 
-    problem_name = File.basename(file_name, '.cpp')
+    extension = File.extname(file_name)
+    unless @extensions.include?(extension)
+      warn 'tcjudge: cannot detect the language'
+      return
+    end
+
+    language = @languages[@extensions[extension]]
+
+    if language.nil?
+      warn 'tcjudge: the language is not supported yet'
+      return
+    end
+
+    problem_name = File.basename(file_name, extension)
 
     scraper = TopCoderScraper.new(Dir.tmpdir)
     unless scraper.is_cache_available(problem_name, [:problem_definition])
@@ -586,8 +599,8 @@ class TCJudge
 
     open file_name, 'w' do |destination|
       @template ||= {}
-      @template[:CXX] ||= nil
-      destination.write TopCoderCXXTester.new(problem_definition).get_template(@template[:CXX])
+      @template[@extensions[extension]] ||= nil
+      destination.write language.new(problem_definition).get_template(@template[@extensions[extension]])
       warn 'ok.'
     end
   end
