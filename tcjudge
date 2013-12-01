@@ -5,7 +5,6 @@
 
 require 'io/console'
 require 'tmpdir'
-require 'yaml'
 require 'mechanize'
 
 class TopCoderScraper
@@ -470,9 +469,7 @@ class TCJudge
   def initialize
     tcjudegrc_file_name = File.expand_path('~/.tcjudgerc')
     if File.exist?(tcjudegrc_file_name)
-      @config = YAML.load_file(tcjudegrc_file_name)
-    else
-      @config = {}
+      instance_eval File.read(tcjudegrc_file_name)
     end
   end
 
@@ -615,23 +612,19 @@ class TCJudge
 
   # return false if succeeded
   def login(scraper)
-    user_name = nil
-    if @config.include?('user_name')
-      user_name = @config['user_name']
-    else
+    @user_name ||= nil
+    if @user_name.nil?
       $stderr.print 'User Name: '
-      user_name = $stdin.gets().strip
+      @user_name = $stdin.gets().strip
     end
 
-    password = nil
-    if @config.include?('password')
-      password = @config['password']
-    else
+    @password ||= nil
+    if @password.nil?
       $stderr.print 'Password: '
-      password = $stdin.noecho(&:gets).strip
+      @password = $stdin.noecho(&:gets).strip
     end
 
-    unless scraper.login(user_name, password)
+    unless scraper.login(@user_name, @password)
       warn "\ntcjudge: login succeeded"
       return false
     else
