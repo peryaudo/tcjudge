@@ -1,7 +1,7 @@
 @user_name = 'yourusernamehere'
 @password = yourpasswordhere'
 
-@compiler = { :CXX => 'clang++', :Java => 'javac' }
+@compiler = { :CXX => 'clang++', :Java => 'javac', :CSharp => 'csc' }
 
 @template = {
 	:CXX => Proc.new { <<TEMPLATE
@@ -33,6 +33,21 @@ TEMPLATE
 #{ generate_timestamp() }
 public class #{ @problem_definition[:class_name] } {
 	public #{ generate_signature() } {
+	}
+}
+TEMPLATE
+	},
+	:CSharp => Proc.new { <<TEMPLATE
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+#{ generate_timestamp() }
+
+public class #{ @problem_definition[:class_name] }
+{
+	public #{ generate_signature() }
+	{
 	}
 }
 TEMPLATE

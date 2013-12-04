@@ -947,7 +947,11 @@ EOS
 
       open(@tester_source_name, 'w') {|f| f.write perform_cut(code) + generate_tester() }
 
-      @compile_options = "#{compiler} #{@tester_source_name} -out:\"#{@tester_name}\""
+      if File.basename(compiler, '.exe').downcase == 'csc'
+        @compile_options = "#{compiler} #{@tester_source_name} /out:\"#{@tester_name}\""
+      else
+        @compile_options = "#{compiler} #{@tester_source_name} -out:\"#{@tester_name}\""
+      end
       puts @compile_options
       unless system(@compile_options)
         raise CompileError
@@ -956,7 +960,12 @@ EOS
   end
 
   def run(index)
-    tester_options = "mono \"#{@tester_name}\" #{index}"
+    tester_options = nil
+    if File.basename(compiler, '.exe').downcase == 'csc'
+      tester_options = "\"#{@tester_name}\" #{index}"
+    else
+      tester_options = "mono \"#{@tester_name}\" #{index}"
+    end
     if system(tester_options)
       return :AC
     else
@@ -981,7 +990,7 @@ end
 class TCJudge
   def initialize
     @languages = { :CXX => TopCoderCXXTester, :Java => TopCoderJavaTester, :CSharp => TopCoderCSharpTester, :VB => nil, :Python => nil, :Haskell => nil }
-    @default_compilers = { :CXX => 'g++', :Java => 'javac', :CSharp => 'gmcs', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc' }
+    @default_compilers = { :CXX => 'g++', :Java => 'javac', :CSharp => 'mcs', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc' }
     @extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
                    '.java' => :Java, '.cs' => :CSharp, '.vb' => :VB , '.py' => :Python, '.hs' => :Haskell }
 
