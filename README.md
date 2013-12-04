@@ -27,6 +27,8 @@ tcjudgeは以下のような特徴があります:
 
 （このtcjudgeは[過去にC++で書いた物](http://d.hatena.ne.jp/peryaudo/20111121/1321891386)を、先日完全にRubyで書きなおした物で、Ruby製になったので誰でも(自分含む)いじりやすくなりました。）
 
+同様のスクリプトとしては、[AirSRM](https://github.com/kawakami-o3/AirSRM)などが挙げられますが、tcjudgeは、簡潔なコマンドラインオプションと、手元（カレントディレクトリ）を汚さない設計思想に特徴があります。
+
 ## インストール方法
 
 一式のダウンロードは[こちら](https://github.com/peryaudo/tcjudge/archive/master.zip)からどうぞ。
