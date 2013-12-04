@@ -1007,7 +1007,7 @@ class TCJudge
       warn "       tcjudge [command] MyProblemSolution.cpp\n"
       warn 'Commands: create - Create template for the problem'
       warn '          judge - judge the file'
-      warn '          judge - output the cleaned code to stdout'
+      warn '          clean - output the cleaned code to stdout'
       return
     end
 
