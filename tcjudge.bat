@@ -1,1 +1,1 @@
-ruby "%~dpn0" %*
+@ruby "%~dpn0" %*
