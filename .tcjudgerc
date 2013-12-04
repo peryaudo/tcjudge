@@ -1,7 +1,7 @@
 @user_name = 'yourusernamehere'
 @password = yourpasswordhere'
 
-@compiler = { :CXX => 'clang++' }
+@compiler = { :CXX => 'clang++', :Java => 'javac' }
 
 @template = {
 	:CXX => Proc.new { <<TEMPLATE
@@ -27,6 +27,14 @@ public:
 	}
 };
 
+TEMPLATE
+	},
+	:Java => Proc.new { <<TEMPLATE
+#{ generate_timestamp() }
+public class #{ @problem_definition[:class_name] } {
+	public #{ generate_signature() } {
+	}
+}
 TEMPLATE
 	}
 }

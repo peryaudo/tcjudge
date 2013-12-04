@@ -171,7 +171,89 @@ end
 
 CompileError = Class.new(StandardError)
 
-class TopCoderCXXTester
+class TopCoderTester
+  def generate_timestamp
+    return <<EOS
+// CUT begin
+// TIMESTAMP: #{ Time.now.to_i }
+// CUT end
+EOS
+  end
+
+  def print_points(code)
+    code.match(/^\/\/ TIMESTAMP: ([0-9]+)$/) do |backward|
+      seconds = Time.now.to_i - backward[1].to_i
+      @problem_definition[:points].each_with_index do |total, i|
+        points = convert_seconds_to_points(seconds, total)
+        warn "Score: #{ sprintf('%.2f', points) } / #{ total } (#{ seconds } secs)"
+      end
+    end
+    return
+  end
+
+  def convert_seconds_to_points(seconds, mp)
+    tt = 60.0
+    pt = seconds / 60.0
+    return mp * (0.3 + (0.7 * tt ** 2) / (10.0 * pt ** 2 + tt **2))
+  end
+
+  def generate_signature()
+    return convert_type(@problem_definition[:return_type]) + ' ' + @problem_definition[:method_name] + '(' + \
+      (@problem_definition[:parameters].map { |parameter| convert_type(parameter[:type]) + ' ' + parameter[:name] }).join(', ') + ')'
+  end
+
+  # strictly parse comma separated parameters
+  def split_parameters(parameters_string)
+
+    depth = 0
+    prev = 0
+    start = false
+
+    parameters = []
+
+    parameters_string.length.times do |index|
+      case parameters_string[index]
+      when '"'
+        if start
+          depth += 1
+        else
+          depth -= 1
+        end
+        start = !start
+      when '{'
+        depth += 1
+      when '}'
+        depth -= 1
+      when ','
+        if depth == 0
+          parameters.push(parameters_string[prev .. (index - 1)].strip)
+          prev = index + 1
+        end
+      end
+    end
+
+    parameters.push(parameters_string[prev .. parameters_string.length - 1].strip)
+    return parameters
+  end
+
+  def perform_cut(code)
+    return code.split(/r?\n/).inject(['', true]) do |succ, cur|
+      if cur =~ /^\/\/ CUT begin/
+        [succ[0], false]
+      elsif cur =~ /^^\/\/ CUT end/
+        [succ[0], true]
+      else
+        if succ[1] == true
+          [succ[0] + "\n" + cur, succ[1]]
+        else
+          succ
+        end
+      end
+    end.first
+  end
+end
+
+class TopCoderCXXTester < TopCoderTester
   def get_template(template_proc)
     if template_proc.nil?
       return <<EOS
@@ -202,31 +284,6 @@ EOS
     end
   end
 
-  def generate_timestamp
-    return <<EOS
-// CUT begin
-// TIMESTAMP: #{ Time.now.to_i }
-// CUT end
-EOS
-  end
-
-  def print_points(code)
-    code.match(/^\/\/ TIMESTAMP: ([0-9]+)$/) do |backward|
-      seconds = Time.now.to_i - backward[1].to_i
-      @problem_definition[:points].each_with_index do |total, i|
-        points = convert_seconds_to_points(seconds, total)
-        warn "Score: #{ sprintf('%.2f', points) } / #{ total } (#{ seconds } secs)"
-      end
-    end
-    return
-  end
-
-  def convert_seconds_to_points(seconds, mp)
-    tt = 60.0
-    pt = seconds / 60.0
-    return mp * (0.3 + (0.7 * tt ** 2) / (10.0 * pt ** 2 + tt **2))
-  end
-
   def convert_type(type_name)
     cxx_type_names = {'long' => 'long long', 'String' => 'string'}
 
@@ -249,11 +306,6 @@ EOS
     end
 
     return cxx_type_name
-  end
-
-  def generate_signature()
-    return convert_type(@problem_definition[:return_type]) + ' ' + @problem_definition[:method_name] + '(' + \
-      (@problem_definition[:parameters].map { |parameter| convert_type(parameter[:type]) + ' ' + parameter[:name] }).join(', ') + ')'
   end
 
   def generate_tester()
@@ -380,40 +432,6 @@ int test#{ index }(void)
 EOS
   end
 
-  # strictly parse comma separated parameters
-  def split_parameters(parameters_string)
-
-    depth = 0
-    prev = 0
-    start = false
-
-    parameters = []
-
-    parameters_string.length.times do |index|
-      case parameters_string[index]
-      when '"'
-        if start
-          depth += 1
-        else
-          depth -= 1
-        end
-        start = !start
-      when '{'
-        depth += 1
-      when '}'
-        depth -= 1
-      when ','
-        if depth == 0
-          parameters.push(parameters_string[prev .. (index - 1)].strip)
-          prev = index + 1
-        end
-      end
-    end
-
-    parameters.push(parameters_string[prev .. parameters_string.length - 1].strip)
-    return parameters
-  end
-
   def generate_parameters(parameters_string)
     result = ''
     parameters = split_parameters(parameters_string)
@@ -463,17 +481,15 @@ EOS
       @test_cases = test_cases
       @tmpdir = tmpdir
 
-      tester_source_name = "#{@tmpdir}/tester.cpp"
-      tester_name = "#{@tmpdir}/tester"
+      @tester_source_name = "#{@tmpdir}/tester.cpp"
+      @tester_name = "#{@tmpdir}/tester"
 
-      open(tester_source_name, 'w').write "#{ perform_cut(code) }\n#{ generate_tester() }"
-
-      compile_options = nil
+      open(@tester_source_name, 'w').write "#{ perform_cut(code) }\n#{ generate_tester() }"
 
       if File.basename(compiler, '.exe').downcase == 'cl' then
-        compile_options = "#{compiler} /Fe\"#{tester_name}\" \"#{tester_source_name}\""
+        @compile_options = "#{compiler} /Fe\"#{@tester_name}\" \"#{@tester_source_name}\""
       else
-        compile_options = "#{compiler} \"#{tester_source_name}\" -o \"#{tester_name}\""
+        @compile_options = "#{compiler} \"#{@tester_source_name}\" -o \"#{@tester_name}\""
       end
 
       unless system(compile_options)
@@ -482,29 +498,9 @@ EOS
     end
   end
 
-  def perform_cut(code)
-    return code.split(/r?\n/).inject(['', true]) do |succ, cur|
-      if cur =~ /^\/\/ CUT begin/
-        [succ[0], false]
-      elsif cur =~ /^^\/\/ CUT end/
-        [succ[0], true]
-      else
-        if succ[1] == true
-          [succ[0] + "\n" + cur, succ[1]]
-        else
-          succ
-        end
-      end
-    end.first
-  end
-
   def run(index)
-    # TODO: Don't repeat yourself!!!!
-    tester_name = "#{@tmpdir}/tester"
-    tester_source_name = "#{@tmpdir}/tester.cpp"
-    tester_name = "#{@tmpdir}/tester"
-
-    if system("#{tester_name} #{index}")
+    tester_options = "\"#{tester_name}\" #{index}"
+    if system(tester_options)
       return :AC
     else
       case $?.exitstatus
@@ -514,8 +510,8 @@ EOS
         if $?.exited?
           return :UNKNOWN_ERROR
         else
-          puts "\nCompiller Options: g++ #{tester_source_name} -o #{tester_name}"
-          puts "Tester Options: #{tester_name} #{index}"
+          puts "\nCompiller Options: #{@compile_options}"
+          puts "Tester Options: #{@tester_options}"
           puts "Exit Status: #{$?}"
           return :RUNTIME_ERROR
         end
@@ -524,11 +520,238 @@ EOS
   end
 end
 
+class TopCoderJavaTester < TopCoderTester
+  def get_template(template_proc)
+    if template_proc.nil?
+      return <<EOS
+#{ generate_timestamp() }
+public class #{ @problem_definition[:class_name] } {
+	public #{ generate_signature() } {
+	}
+}
+EOS
+    else
+      return instance_eval(&template_proc)
+    end
+  end
+
+  def convert_type(type_name)
+    return type_name
+  end
+
+  def generate_tester()
+    tester = <<EOS
+public class Tester {
+#{ generate_result_comparison_function() }
+#{ generate_result_dumper_function() }
+EOS
+
+    @test_cases.length.times do |index|
+      tester += generate_tester_function(index)
+    end
+
+    tester += <<EOS
+  public static void main(String[] args) {
+    switch (Integer.parseInt(args[0])) {
+EOS
+  @test_cases.length.times do |index|
+    tester += "      case #{ index }: System.exit(test#{ index }());\n"
+  end
+  tester += <<EOS
+    }
+    return;
+  }
+}
+EOS
+
+    return tester
+  end
+
+  def generate_result_comparison_function
+    java_type = convert_type(@problem_definition[:return_type])
+
+    func = "static boolean compareResult(#{ java_type } from, #{ java_type } to)\n{\n"
+    case java_type
+    when 'double'
+      func += "  return Math.abs(from - to) <= 1e-9;\n";
+    when 'double[]'
+      func += <<EOS
+  if (from.length != to.length) return false;
+  boolean res = true;
+  for (int i = 0; i < from.length; ++i) {
+    if (!(Math.abs(from[i] - to[i]) <= 1e-9)) {
+      res = false;
+      break;
+    }
+  }
+  return res;
+EOS
+    else
+      if java_type =~ /\[\]$/
+        func += <<EOS
+  if (from.length != to.length) return false;
+  boolean res = true;
+  for (int i = 0; i < from.length; ++i) {
+    if (from[i] != to[i]) {
+      res = false;
+      break;
+    }
+  }
+  return res;
+EOS
+      else
+        func += "  return from == to;\n"
+      end
+    end
+
+    func += "}\n"
+
+    return func
+  end
+
+  def generate_result_dumper_function
+    java_type = convert_type(@problem_definition[:return_type])
+
+    func = "static void dumpResult(#{ java_type } result_)\n{\n"
+    if java_type =~ /\[\]$/
+      func += <<EOS
+  System.out.print("{");
+  for (int i = 0; i < result_.length; ++i) {
+    #{ java_type.sub('[]','') } result = result_[i];
+EOS
+    else
+      func += "  #{ java_type.sub('[]','') } result = result_;\n"
+    end
+
+    if java_type == 'string' || java_type == 'string[]'
+      func += '  System.out.print("\"" + result + "\"");'
+      func += "\n"
+    else
+      func += "  System.out.print(String.valueOf(result));\n"
+    end
+
+    if java_type =~ /\[\]$/
+      func += <<EOS
+    System.out.print(i == result_.length - 1 ? "" : ", ");
+  }
+  System.out.print("}");
+EOS
+    end
+
+    func += "}\n"
+
+    return func
+  end
+
+  def generate_tester_function(index)
+    return <<EOS
+static int test#{ index }()
+{
+  #{ @problem_definition[:class_name] } target = new #{ @problem_definition[:class_name] }();
+#{ generate_parameters(@test_cases[index][:input]) }
+#{ generate_tester_call() }
+#{ generate_parameter(@problem_definition[:return_type], "expected", @test_cases[index][:output]) }
+  if (compareResult(result, expected)) {
+    return 0;
+  } else {
+    dumpResult(result);
+    return 1;
+  }
+}
+EOS
+  end
+
+  def generate_parameters(parameters_string)
+    result = ''
+    parameters = split_parameters(parameters_string)
+
+    @problem_definition[:parameters].each_with_index do |parameter, index|
+      result += generate_parameter(parameter[:type], "param#{index}", parameters[index])
+    end
+
+    return result
+  end
+
+  def generate_primary_value(type, value)
+    case type
+    when 'String'
+      return "#{value}"
+    when 'long'
+      return "#{value}L"
+    else
+      return value
+    end
+  end
+
+  def generate_parameter(type, name, value)
+    if type =~ /\[\]$/
+      # array
+      element_type = type.sub(/\[\]$/, '')
+      elements = split_parameters(value[1, value.length - 2])
+      parameter = "  #{ convert_type(type) } #{ name } = { "
+      parameter += elements.map { |element| generate_primary_value(element_type, element) }.join(', ')
+      parameter += " };\n"
+      return parameter
+    else
+      return "  #{ convert_type(type) } #{ name } = #{ generate_primary_value(type, value) };\n"
+    end
+  end
+
+  def generate_tester_call
+    return "  #{ convert_type(@problem_definition[:return_type]) } result = target.#{ @problem_definition[:method_name] }(" +
+      (0 .. (@problem_definition[:parameters].length - 1)).map { |index| "param#{ index }" }.join(', ') + ");"
+  end
+
+  def initialize(problem_definition, test_cases = nil, tmpdir = nil, code = nil, compiler = nil)
+    @problem_definition = problem_definition
+
+    if test_cases != nil && tmpdir != nil && code != nil && compiler != nil
+      @test_cases = test_cases
+      @tmpdir = tmpdir
+
+      @tester_source_name = "#{@tmpdir}/Tester.java"
+      @solution_source_name = "#{@tmpdir}/#{@problem_definition[:class_name]}.java"
+
+      open(@tester_source_name, 'w') {|f| f.write generate_tester() }
+      open(@solution_source_name, 'w') {|f| f.write perform_cut(code) }
+
+      @compile_options = "#{compiler} #{@solution_source_name} #{@tester_source_name}"
+      puts @compile_options
+      unless system(@compile_options)
+        raise CompileError
+      end
+    end
+  end
+
+  def run(index)
+    tester_options = "java -classpath \"#{@tmpdir}\" Tester #{index}"
+    if system(tester_options)
+      return :AC
+    else
+      case $?.exitstatus
+      when 1
+        return :WA
+      else
+        if $?.exited?
+          return :UNKNOWN_ERROR
+        else
+          puts "\nCompiller Options: #{ @compile_options }"
+          puts "Tester Options: #{tester_options}"
+          puts "Exit Status: #{$?}"
+          return :RUNTIME_ERROR
+        end
+      end
+    end
+  end
+
+end
+
 class TCJudge
   def initialize
-    @languages = { :CXX => TopCoderCXXTester, :Java => nil, :CS => nil, :VB => nil }
+    @languages = { :CXX => TopCoderCXXTester, :Java => TopCoderJavaTester, :CS => nil, :VB => nil, :Python => nil, :Haskell => nil }
+    @default_compilers = { :CXX => 'g++', :Java => 'javac', :CS => 'csc', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc' }
     @extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
-                   '.java' => :Java, '.cs' => :CS, '.vb' => :VB }
+                   '.java' => :Java, '.cs' => :CS, '.vb' => :VB , '.py' => :Python, '.hs' => :Haskell }
 
     tcjudegrc_file_name = File.expand_path('~/.tcjudgerc')
     if File.exist?(tcjudegrc_file_name)
@@ -662,9 +885,10 @@ class TCJudge
     warn " total #{ test_cases.length } cases."
 
     tester = nil
+
     begin
       @compiler ||= {}
-      @compiler[@extensions[extension]] ||= 'g++'
+      @compiler[@extensions[extension]] ||= @default_compilers[@extensions[extension]]
       tester = language.new(problem_definition, test_cases, Dir.tmpdir, code, @compiler[@extensions[extension]])
     rescue CompileError
       warn 'tcjudge: compile error'
