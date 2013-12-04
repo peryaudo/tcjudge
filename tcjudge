@@ -467,7 +467,16 @@ EOS
       tester_name = "#{@tmpdir}/tester"
 
       open(tester_source_name, 'w').write "#{ perform_cut(code) }\n#{ generate_tester() }"
-      unless system("#{compiler} #{tester_source_name} -o #{tester_name}")
+
+      compile_options = nil
+
+      if File.basename(compiler, '.exe').downcase == 'cl' then
+        compile_options = "#{compiler} /Fe\"#{tester_name}\" \"#{tester_source_name}\""
+      else
+        compile_options = "#{compiler} \"#{tester_source_name}\" -o \"#{tester_name}\""
+      end
+
+      unless system(compile_options)
         raise CompileError
       end
     end
@@ -534,6 +543,7 @@ class TCJudge
       warn "       tcjudge [command] MyProblemSolution.cpp\n"
       warn 'Commands: create - Create template for the problem'
       warn '          judge - judge the file'
+      warn '          judge - output the cleaned code to stdout'
       return
     end
 
