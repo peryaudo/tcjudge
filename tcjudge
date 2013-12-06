@@ -226,13 +226,20 @@ EOS
         depth -= 1
       when ','
         if depth == 0
-          parameters.push(parameters_string[prev .. (index - 1)].strip)
+          cur = parameters_string[prev .. (index - 1)].strip
+          if !(cur.empty?)
+            parameters.push(cur)
+          end
           prev = index + 1
         end
       end
     end
 
-    parameters.push(parameters_string[prev .. parameters_string.length - 1].strip)
+    cur = parameters_string[prev .. parameters_string.length - 1].strip
+    if !(cur.empty?)
+      parameters.push(cur)
+    end
+
     return parameters
   end
 
@@ -399,7 +406,7 @@ EOS
 
     if cxx_type =~ /^vector/
       func += <<EOS
-    cout<<(i == result_.size() - 1 ? "\\n" : ", ");
+    cout<<(i == result_.size() - 1 ? "" : ", ");
   }
   cout<<"}";
 EOS
