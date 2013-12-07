@@ -518,7 +518,7 @@ EOS
           return :UNKNOWN_ERROR
         else
           puts "\nCompiller Options: #{@compile_options}"
-          puts "Tester Options: #{@tester_options}"
+          puts "Tester Options: #{tester_options}"
           puts "Exit Status: #{$?}"
           return :RUNTIME_ERROR
         end
