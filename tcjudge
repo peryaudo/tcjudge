@@ -173,11 +173,7 @@ CompileError = Class.new(StandardError)
 
 class TopCoderTester
   def generate_timestamp
-    return <<EOS
-// CUT begin
-// TIMESTAMP: #{ Time.now.to_i }
-// CUT end
-EOS
+    return "// TIMESTAMP: #{ Time.now.to_i }"
   end
 
   def print_points(code)
@@ -278,7 +274,9 @@ class TopCoderCXXTester < TopCoderTester
 
 using namespace std;
 
+// CUT begin
 #{ generate_timestamp() }
+// CUT end
 
 class #{ @problem_definition[:class_name] } {
 public:
@@ -531,7 +529,9 @@ class TopCoderJavaTester < TopCoderTester
   def get_template(template_proc)
     if template_proc.nil?
       return <<EOS
+// CUT begin
 #{ generate_timestamp() }
+// CUT end
 public class #{ @problem_definition[:class_name] } {
 	public #{ generate_signature() } {
 	}
@@ -761,7 +761,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
+// CUT begin
 #{ generate_timestamp() }
+// CUT end
 
 public class #{ @problem_definition[:class_name] }
 {
