@@ -1047,11 +1047,7 @@ class TCJudge
       when 'create'
         write_template filename
       when 'judge'
-        if options.include?('--force')
-          judge filename, true
-        else
-          judge filename, false 
-        end
+        judge filename, options.include?('--force')
       when 'clean'
         clean filename
         warn 'tcjudge: wrote the cleaned code to stdout'
