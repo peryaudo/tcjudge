@@ -1011,7 +1011,19 @@ class TCJudge
 
   def start(argv)
     warn 'TopCoder Local Judge by peryaudo'
-    if argv.length != 1 && argv.length != 2
+
+    filenames = []
+    options = []
+
+    argv.each do |arg|
+      if arg =~ /^--/
+        options.push arg
+      else
+        filenames.push arg
+      end
+    end
+    
+    if filenames.length != 1 && filenames.length != 2
       warn 'usage: tcjudge MyProblemSolution.cpp'
       warn "       tcjudge [command] MyProblemSolution.cpp\n"
       warn 'Commands: create - Create template for the problem'
@@ -1020,22 +1032,31 @@ class TCJudge
       return
     end
 
-    if argv.length == 1
-      judge argv[0]
-      return
+    command = nil
+    filename = nil
+
+    if filenames.length == 1
+      command = 'judge'
+      filename = filenames[0]
+    elsif filenames.length = 2
+      command = filenames[0]
+      filename = filenames[1]
     end
 
-    if argv.length == 2
-      case argv[0]
-        when 'create'
-          write_template argv[1]
-        when 'judge'
-          judge argv[1]
-        when 'clean'
-          clean argv[1]
+    case command
+      when 'create'
+        write_template filename
+      when 'judge'
+        if options.include?('--force')
+          judge filename, true
         else
-          warn 'tcjudge: invalid command line option'
-      end
+          judge filename, false 
+        end
+      when 'clean'
+        clean filename
+        warn 'tcjudge: wrote the cleaned code to stdout'
+      else
+        warn 'tcjudge: invalid command line option'
     end
   end
 
@@ -1093,7 +1114,7 @@ class TCJudge
     return
   end
 
-  def judge(file_name)
+  def judge(file_name, force = false)
     code = nil
     begin
       open file_name, 'r' do |file|
@@ -1146,7 +1167,10 @@ class TCJudge
     end
 
     succeeded = true
+
     test_cases.length.times do |index|
+      current_succeeded = true
+
       print "Test Case #{ index } ..."
       result = tester.run(index)
       case result
@@ -1154,25 +1178,29 @@ class TCJudge
         puts 'Accepted.'
       when :WA
         puts 'WRONG ANSWER.'
-        succeeded = false
+        current_succeeded = false
       when :TLE
         puts 'TIME LIMIT EXCEEDED.'
-        succeeded = false
+        current_succeeded = false
       when :MLE
         puts 'MEMORY LIMIT EXCEEDED.'
-        succeeded = false
+        current_succeeded = false
       when :RUNTIME_ERROR
         puts 'RUNTIME ERROR.'
-        succeeded = false
+        current_succeeded = false
       else
         puts 'UNKNOWN ERROR.'
-        succeeded = false
+        current_succeeded = false
       end
 
-      unless succeeded
+      unless current_succeeded
+        succeeded = false
+
         puts "Test Case: #{ test_cases[index][:input] }"
         puts "Expected Output: #{ test_cases[index][:output] }"
-        break
+        if !force
+          break
+        end
       end
     end
 
