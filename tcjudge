@@ -1038,7 +1038,7 @@ class TCJudge
     if filenames.length == 1
       command = 'judge'
       filename = filenames[0]
-    elsif filenames.length = 2
+    elsif filenames.length == 2
       command = filenames[0]
       filename = filenames[1]
     end
