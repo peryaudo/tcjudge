@@ -1192,6 +1192,22 @@ EOS
       end
     end
   end
+
+  def perform_cut(code)
+    return code.split(/r?\n/).inject(['', true]) do |succ, cur|
+      if cur =~ /^-- CUT begin/
+        [succ[0], false]
+      elsif cur =~ /^-- CUT end/
+        [succ[0], true]
+      else
+        if succ[1] == true
+          [succ[0] + "\n" + cur, succ[1]]
+        else
+          succ
+        end
+      end
+    end.first
+  end
 end
 
 
@@ -1305,7 +1321,20 @@ class TCJudge
   end
 
   def clean(file_name)
-    print TopCoderCXXTester.new(nil).perform_cut(open(file_name, 'r').read)
+    extension = File.extname(file_name)
+    unless @extensions.include?(extension)
+      warn 'tcjudge: cannot detect the language'
+      return
+    end
+
+    language = @languages[@extensions[extension]]
+
+    if language.nil?
+      warn 'tcjudge: the language is not supported yet'
+      return
+    end
+
+    print language.new(nil).perform_cut(open(file_name, 'r').read)
     return
   end
 
