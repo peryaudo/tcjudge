@@ -996,9 +996,208 @@ EOS
 
 end
 
+class TopCoderHaskellTester < TopCoderTester
+  def generate_timestamp
+    return "-- TIMESTAMP: #{ Time.now.to_i }"
+  end
+
+  def print_points(code)
+    code.match(/^-- TIMESTAMP: ([0-9]+)$/) do |backward|
+      seconds = Time.now.to_i - backward[1].to_i
+      @problem_definition[:points].each_with_index do |total, i|
+        points = convert_seconds_to_points(seconds, total)
+        warn "Score: #{ sprintf('%.2f', points) } / #{ total } (#{ seconds } secs)"
+      end
+    end
+    return
+  end
+
+  def generate_signature()
+    return @problem_definition[:method_name] + ' :: ' + \
+      (@problem_definition[:parameters].map { |parameter| convert_type(parameter[:type]) }).join(' -> ') + ' -> ' + convert_type(@problem_definition[:return_type])
+  end
+
+
+  def get_template(template_proc)
+    if template_proc.nil?
+      return <<EOS
+-- CUT begin
+#{ generate_timestamp() }
+-- CUT end
+
+#{ generate_signature() }
+#{ @problem_definition[:method_name] } #{ (@problem_definition[:parameters].map { |parameter| parameter[:name] }).join(' ') } = 
+EOS
+    else
+      return instance_eval(&template_proc)
+    end
+  end
+
+  def convert_type(type_name)
+    haskell_type_names = {'int' => 'Int', 'long' => 'Int', 'double' => 'Double', 'String' => 'string'}
+
+    is_array = false
+    base_type_name = type_name
+    if type_name =~ /\[\]$/
+      is_array = true
+      base_type_name = type_name.sub(/\[\]$/, '').strip
+    end
+
+    haskell_type_name = nil
+    if haskell_type_names.include?(base_type_name)
+      haskell_type_name = haskell_type_names[base_type_name]
+    else
+      haskell_type_name = base_type_name
+    end
+
+    if is_array
+      haskell_type_name = "[#{ haskell_type_name }]"
+    end
+
+    return haskell_type_name
+  end
+
+  def generate_tester()
+    tester = <<EOS
+#{ generate_result_comparison_function() }
+#{ generate_result_dumper_function() }
+
+EOS
+
+    @test_cases.length.times do |index|
+      tester += generate_tester_function(index)
+    end
+
+
+    tester += <<EOS
+
+myExitWith 0 = exitWith (ExitSuccess)
+myExitWith x = exitWith (ExitFailure x)
+
+main = do args <- getArgs
+          res <- test (read (head args))
+          myExitWith res
+EOS
+
+    return tester
+  end
+
+  def generate_result_comparison_function
+    haskell_type = convert_type(@problem_definition[:return_type])
+
+    func = nil
+
+    case haskell_type
+    when 'Double'
+      func = "compareResult from to = abs (from - to) <= 1e-9\n";
+    when '[Double]'
+      func = <<EOS
+compareResult (x:xs) (y:ys) = if abs (from - to) <= 1e-9 then (compareResult xs ys) else False
+compareResult [] [] = True
+compareResult _ _ = False
+EOS
+    else
+      func = "compareResult from to = from == to\n"
+    end
+
+    return func
+  end
+
+  def generate_result_dumper_function
+    return "dumpResult = print"
+  end
+
+  def generate_tester_function(index)
+    return <<EOS
+test #{ index } = do
+#{ generate_parameters(@test_cases[index][:input]) }
+#{ generate_tester_call() }
+#{ generate_parameter(@problem_definition[:return_type], "expected", @test_cases[index][:output]) }
+  if (compareResult result expected) then
+    return 0
+  else 
+    (dumpResult result) >> (return 1)
+
+EOS
+  end
+
+  def generate_parameters(parameters_string)
+    result = ''
+    parameters = split_parameters(parameters_string)
+
+    @problem_definition[:parameters].each_with_index do |parameter, index|
+      result += generate_parameter(parameter[:type], "param#{index}", parameters[index])
+    end
+
+    return result
+  end
+
+  def generate_parameter(type, name, value)
+    if type =~ /\[\]$/
+      elements = split_parameters(value[1, value.length - 2])
+      return "  let #{name} = [" + elements.join(', ') + "]\n"
+    else
+      return "  let #{name} = #{ value }\n"
+    end
+  end
+
+  def generate_tester_call
+    return "  let result = #{ @problem_definition[:method_name] } " +
+      (0 .. (@problem_definition[:parameters].length - 1)).map { |index| "param#{ index }" }.join(' ')
+  end
+
+  def initialize(problem_definition, test_cases = nil, tmpdir = nil, code = nil, compiler = nil)
+    @problem_definition = problem_definition
+
+    if test_cases != nil && tmpdir != nil && code != nil && compiler != nil
+      @test_cases = test_cases
+      @tmpdir = tmpdir
+
+      @tester_source_name = "#{@tmpdir}/tester.hs"
+      @tester_name = "#{@tmpdir}/tester"
+
+      open(@tester_source_name, 'w').write <<EOS
+import System.Environment
+import System.Exit
+
+#{ perform_cut(code) }
+#{ generate_tester() }
+EOS
+
+      @compile_options = "#{compiler} \"#{@tester_source_name}\" -o \"#{@tester_name}\""
+
+      unless system(@compile_options)
+        raise CompileError
+      end
+    end
+  end
+
+  def run(index)
+    tester_options = "\"#{@tester_name}\" #{index}"
+    if system(tester_options)
+      return :AC
+    else
+      case $?.exitstatus
+      when 1
+        return :WA
+      else
+        if $?.exited?
+          return :UNKNOWN_ERROR
+        else
+          puts "\nCompiller Options: #{@compile_options}"
+          puts "Tester Options: #{tester_options}"
+          puts "Exit Status: #{$?}"
+          return :RUNTIME_ERROR
+        end
+      end
+    end
+  end
+end
+
+
 class TCJudge
   def initialize
-    @languages = { :CXX => TopCoderCXXTester, :Java => TopCoderJavaTester, :CSharp => TopCoderCSharpTester, :VB => nil, :Python => nil, :Haskell => nil }
+    @languages = { :CXX => TopCoderCXXTester, :Java => TopCoderJavaTester, :CSharp => TopCoderCSharpTester, :VB => nil, :Python => nil, :Haskell => TopCoderHaskellTester }
     @default_compilers = { :CXX => 'g++', :Java => 'javac', :CSharp => 'mcs', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc' }
     @extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
                    '.java' => :Java, '.cs' => :CSharp, '.vb' => :VB , '.py' => :Python, '.hs' => :Haskell }
