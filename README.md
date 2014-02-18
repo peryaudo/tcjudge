@@ -22,7 +22,7 @@ tcjudgeは以下のような特徴があります:
 - テンプレート作成機能
 - 本家よりは高速なジャッジ（ただしOSX/Linuxで動かしたほうが速い…Windowsだと本家とそんなに差はない…）
 - Rubyを用いた設定ファイルによる柔軟な設定
-- 複数の言語（C++, Java, C#）とコンパイラ（GCC, Clang, Visual C++, Mono, Visual C#）に対応
+- 複数の言語（C++, Java, C#, Haskell, Python）とコンパイラ（GCC, Clang, Visual C++, Mono, Visual C#, GHC）に対応
 - Arena同様の点数計算
 
 （このtcjudgeは[過去にC++で書いた物](http://d.hatena.ne.jp/peryaudo/20111121/1321891386)を、先日完全にRubyで書きなおした物で、Ruby製になったので誰でも(自分含む)いじりやすくなりました。）
