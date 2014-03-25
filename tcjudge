@@ -1441,8 +1441,12 @@ class TCJudge
     filename = nil
 
     if filenames.length == 1
-      command = 'judge'
-      filename = filenames[0]
+      if filenames[0] == 'solved' then
+        command = 'solved'
+      else
+        command = 'judge'
+        filename = filenames[0]
+      end
     elsif filenames.length == 2
       command = filenames[0]
       filename = filenames[1]
@@ -1456,6 +1460,8 @@ class TCJudge
       when 'clean'
         clean filename
         warn 'tcjudge: wrote the cleaned code to stdout'
+      when 'solved'
+        show_solved
       else
         warn 'tcjudge: invalid command line option'
     end
@@ -1650,6 +1656,65 @@ class TCJudge
       warn "\ntcjudge: login failed"
       return true
     end
+  end
+
+  def show_solved
+    agent = Mechanize.new
+
+    template = {}
+    @diary[:difficulties].each do |difficulty|
+      template[difficulty] = false
+    end
+
+    solved = {}
+    (@diary[:from_srm]..@diary[:to_srm]).each do |i|
+      solved["SRM#{i}"] = template.dup
+    end
+
+    month = @diary[:from_month]
+    while month <= @diary[:to_month]
+      page = agent.get("#{@diary[:url]}archive/#{month.strftime('%Y%m')}")
+
+      lis = page.root.xpath('//li[@class="archive archive-section"]')
+      titles = lis.map { |li| li.content }
+
+      titles.each do |title|
+        tags = title.scan(/\[([0-9a-zA-Z]+)\]/).flatten
+        srm_idx = nil
+        probs = []
+        tags.each do |tag|
+          if tag =~ /^SRM/ then
+            srm_idx = tag 
+          else
+            probs.push tag
+          end
+        end
+
+        next unless srm_idx
+
+        probs.each do |prob|
+          solved[srm_idx] ||= template.dup
+          solved[srm_idx][prob] = true
+        end
+      end
+
+      month = month.next_month
+    end
+
+    sorted = solved.sort do |a, b|
+      if a.first.length == b.first.length then
+        a.first <=> b.first
+      else
+        a.first.length <=> b.first.length
+      end
+    end
+
+    sorted.each do |srm|
+      state = @diary[:difficulties].map { |difficulty| srm.last[difficulty] ? '*' : '-' }.join
+
+      puts "#{srm.first} #{state}"
+    end
+
   end
 end
 

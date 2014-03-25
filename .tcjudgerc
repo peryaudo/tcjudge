@@ -57,3 +57,12 @@ public class #{ @problem_definition[:class_name] }
 TEMPLATE
 	}
 }
+
+@diary = {
+	:url => 'http://topcoder.g.hatena.ne.jp/peryaudo/',
+	:from_month => Date.parse('2013-09-01'),
+	:to_month => Time.now.to_date,
+	:from_srm => 400,
+	:to_srm => 613,
+	:difficulties => ['DIV2Easy', 'DIV2Medium', 'DIV2Hard', 'DIV1Easy' , 'DIV1Medium' , 'DIV1Hard']
+}
