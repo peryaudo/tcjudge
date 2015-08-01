@@ -956,6 +956,7 @@ EOS
 
       open(@tester_source_name, 'w') {|f| f.write perform_cut(code) + generate_tester() }
 
+      @compiler = compiler
       if File.basename(compiler, '.exe').downcase == 'csc'
         @compile_options = "#{compiler} /r:System.Numerics.dll #{@tester_source_name} /out:\"#{@tester_name}\""
       else
@@ -970,7 +971,7 @@ EOS
 
   def run(index)
     tester_options = nil
-    if File.basename(compiler, '.exe').downcase == 'csc'
+    if File.basename(@compiler, '.exe').downcase == 'csc'
       tester_options = "\"#{@tester_name}\" #{index}"
     else
       tester_options = "mono \"#{@tester_name}\" #{index}"
