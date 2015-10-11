@@ -2,7 +2,7 @@
 
 tcjudge is a simple command line tool that judges TopCoder solutions within local environment.
 
-[日本語はこちら](https://github.com/peryaudo/tcjudge/blob/master/README.md)
+[日本語はこちら](https://github.com/peryaudo/tcjudge/blob/master/README.ja.md)
 
 ## Features
 
