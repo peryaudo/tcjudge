@@ -1,118 +1,76 @@
-# TopCoderのローカルジャッジのご紹介 (Competitive Programming Advent Calendar Div2013 Day4)
+# tcjudge: Judges TopCoder solutions locally
 
-（README兼）
+tcjudge is a simple command line tool that judges TopCoder solutions within local environment.
 
-これは[Competitive Programming Advent Calendar Div2013](http://partake.in/events/3a3bb090-1390-4b2a-b38b-4273bea4cc83) 4日目の記事です。
+[日本語はこちら](https://github.com/peryaudo/tcjudge/blob/master/README.md)
 
-今の所、アルゴリズム的な意味に興味深い記事を書いてる人が多くてめげそうなのですがめげずに行きます…
-アルゴリズムの話はないです…すいません…
+## Features
 
-オンラインで定期的に実施される、代表的なプログラミングコンテストとして、Codeforcesと並びにTopCoderという物があります。
-皆さんご存知だと思いますが、TopCoderの特徴の1つとして、Web上ではなくArenaと呼ばれる独自のJava製アプリケーションを用いて競技を行うという点があります。
-しかしながら、Arenaの独特の操作性はコマンドラインツールに比べると不便に感じる事もあり、また全般的に動作が重いため、継続的にPracticeとして問題を解き続けるに当ってストレスを感じてしまうことが多々あります。
-特に僕は回線の悪い所（通学電車内とか）でPracticeを開くことが多く、全然開かない、勝手に接続が切れてArenaが閉じる等、こいつのせいでつらぽよが生えていました。
-他方、TopCoderの問題はWeb上でも[公開されており](http://community.topcoder.com/tc?module=MatchList)過去に出題された問題文を閲覧するだけであれば、Arenaを使う必要はありません。
+* Creates scaffold files
+* Executes faster than official
+* Does not mess up your local directory
+* Highly configurable through Ruby
+* Supports multiple languages (C++, Java, C#, Haskell, Python) and compilers (GCC, clang, VC++, Mono, VC#, GHC)
+* Score calculation
 
-そこで、コマンドラインのみで完結し、ローカルで高速なジャッジを行う事のできるtcjudgeを使いましょう！！
+## Usage
 
-## tcjudgeの特徴
-
-tcjudgeは以下のような特徴があります:
-
-- テンプレート作成機能
-- 本家よりは高速なジャッジ（ただしOSX/Linuxで動かしたほうが速い…Windowsだと本家とそんなに差はない…）
-- Rubyを用いた設定ファイルによる柔軟な設定
-- 複数の言語（C++, Java, C#, Haskell, Python）とコンパイラ（GCC, Clang, Visual C++, Mono, Visual C#, GHC）に対応
-- Arena同様の点数計算
-
-（このtcjudgeは[過去にC++で書いた物](http://d.hatena.ne.jp/peryaudo/20111121/1321891386)を、先日完全にRubyで書きなおした物で、Ruby製になったので誰でも(自分含む)いじりやすくなりました。）
-
-同種のスクリプトとしては、[AirSRM](https://github.com/kawakami-o3/AirSRM)などが挙げられますが、tcjudgeは、簡潔なコマンドラインオプションと、手元（カレントディレクトリ）を汚さない設計思想に特徴があります。
-
-## インストール方法
-
-Ruby 1.9.3以上が必要です。
-
-基本的に、Rubyの入ってる環境で
-
-	gem install tcjudge
-
-と打てばすぐ使えるようになります。
-
-分からない所とかあったら@peryaudoまで遠慮無く聞いて下さい。
-
-### Windows
-
-まずRubyを[RubyInstallerから取ってきて](http://rubyinstaller.org/downloads/)入れます。一瞬です。（何も考えずに一番上のインストーラを入れれば幸せになれます。入れる時にPATHに追加のチェックを忘れずに）
-
-次に、コマンドプロンプトから
-
-	gem install tcjudge
-
-と打てば多分使えるようになると思います。
-
-### Mac OS X
-
-今のMacなら多分標準で入ってます。rbenv使ってる人はrbenv rehashとか忘れずに。
-
-### Linux
-
-aptなりでRubyいれてくれ
-
-## 設定
-
-ユーザーディレクトリ直下に、.tcjudgercというファイルを作って書きます。
-以下のような事が書けます。書かなければデフォルト項目が使われます。
-
-	@user_name = 'TopCoderのユーザー名'
-	@password = 'TopCoderのパスワード' #（書かなければ毎回聞いてくるようになる）
-	@compiler = { :CXX => 'g++' }
-	@template = { :CXX => Proc.new { <<TEMPLATE
-	#include <vector>
-	#include <iostream>
-
-	...
-
-	TEMPLATE
-	, :Java => "..." } }
-
-詳しい書き方は、.tcjudgercの見本を見て下さい。
-
-ちゃんとパスを通していればですが、C++のコンパイラにはVisual C++（cl.exe）も使えます。
-
-## 使い方
-
-使い方は至って簡単です。
-
-解きたい問題名がBallsConverterだとして、
+If the name of a problem you want to solve is BallsConverter, you can create a scaffold file by
 
 	tcjudge create BallsConverter.cpp
 
-で、テンプレートを作成できて、ソースのおいてあるディレクトリで
+. Then you can run the judgement by
 
 	tcjudge judge BallsConverter.cpp
 
-ないしは
+or
 
 	tcjudge BallsConverter.cpp
 
-で、ジャッジが走ります。拡張子を見て自動で言語を判定します。
+. tcjudge automatically detects the language by its extension.
 
-あと、
+Also, you can cut out from "CUT begin" to "CUT end" by
 
 	tcjudge clean BallsConverter.cpp
 
-で、CUT begin〜CUT endまでを切り取ったソースを標準入出力に吐いてくれるので、例えばOSXなら
+. It emits the source code to stdout. It is especially useful when used like 
 
 	tcjudge clean BallsConverter.cpp | pbcopy
 
-とかやってお手軽にGreedの吐いたソースからブログに貼れる用ソースを作るツールとしても使えます。
+## Prerequisites
 
-## Pull RequestsやIssuesをお待ちしております
+* Ruby >= 1.9.3
 
-Rubyで人間にも読みやすい割と拡張性のあるソースになってますし、是非使ってバグを発見したり、気になる所があったら是非Pull RequestなりIssue入れるなりしてください…
-誰も使ってくれないと悲しいです…
+## Installation
 
-C#とJavaはあまりテストしてないのでバグが残ってるかもしれないです。
+	gem install tcjudge
 
-MLEやTLEは今の所実装されてないです…（誰かうまく実装して…）
+## Configuration
+
+See .tcjudgerc file for detail. Defaults will be used if you don't create one.
+
+You can use cl.exe for C++ compiler too.
+
+## License
+
+The MIT License (MIT)
+
+Copyright (c) 2013-2015 peryaudo.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
