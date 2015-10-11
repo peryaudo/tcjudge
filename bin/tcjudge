@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+require 'tcjudge'
+
+# TopCoder Local Judge by peryaudo
+# MIT License
+
+tcjudge = TCJudge.new
+tcjudge.start ARGV

@@ -1405,7 +1405,7 @@ class TCJudge
     @languages = { :CXX => TopCoderCXXTester, :Java => TopCoderJavaTester,
                    :CSharp => TopCoderCSharpTester, :VB => nil,
                    :Python => TopCoderPythonTester, :Haskell => TopCoderHaskellTester }
-    @default_compilers = { :CXX => 'g++', :Java => 'javac', :CSharp => 'mcs', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc', :Python => 'python' }
+    @default_compilers = { :CXX => 'g++', :Java => 'javac', :CSharp => 'mcs', :VB => 'vbc', :Python => 'python', :Haskell => 'ghc' }
     @extensions = { '.cpp' => :CXX, '.cc' => :CXX, '.cxx' => :CXX,
                    '.java' => :Java, '.cs' => :CSharp, '.vb' => :VB , '.py' => :Python, '.hs' => :Haskell }
 
@@ -1718,7 +1718,3 @@ class TCJudge
 
   end
 end
-
-tcjudge = TCJudge.new
-tcjudge.start ARGV
-

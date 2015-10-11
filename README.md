@@ -31,41 +31,33 @@ tcjudgeは以下のような特徴があります:
 
 ## インストール方法
 
-一式のダウンロードは[こちら](https://github.com/peryaudo/tcjudge/archive/master.zip)からどうぞ。
+Ruby 1.9.3以上が必要です。
+
+基本的に、Rubyの入ってる環境で
+
+	gem install tcjudge
+
+と打てばすぐ使えるようになります。
 
 分からない所とかあったら@peryaudoまで遠慮無く聞いて下さい。
 
 ### Windows
 
-Rubyを要求してきて一見めんどくさそうに見えますが一瞬です。
+まずRubyを[RubyInstallerから取ってきて](http://rubyinstaller.org/downloads/)入れます。一瞬です。（何も考えずに一番上のインストーラを入れれば幸せになれます。入れる時にPATHに追加のチェックを忘れずに）
 
-Ruby 1.9.3以上が必要なので、まずRubyを[RubyInstallerから取ってきて](http://rubyinstaller.org/downloads/)入れます。一瞬です。（何も考えずに一番上のインストーラを入れれば幸せになれます。入れる時にPATHに追加のチェックを忘れずに）
+次に、コマンドプロンプトから
 
-次に、一式を展開したディレクトリ内で
+	gem install tcjudge
 
-	gem install bundler
-	bundle
-
-と打って、あとはPATHの通った１つのディレクトリにtcjudgeとtcjudge.batを放り込むだけです。一瞬です。
-（放り込む先は、迷ったらRubyInstallerでRuby入れたディレクトリ（例: C:\Ruby200\bin）みたいな場所でもいいです）
+と打てば多分使えるようになると思います。
 
 ### Mac OS X
 
-Ruby 1.9.3以上が必要です。
-Mavericksでなら多分いろいろ考えなくてよくて楽だと思います。
-（Mountain Lionの人はrbenvとかrvmとかを使ってがんばってRuby 2.0.0を入れてください… ）
-
-	gem install bundler
-
-して、その後一式を展開したディレクトリ内で
-
-	make install
-
-と打つだけです。
+今のMacなら多分標準で入ってます。rbenv使ってる人はrbenv rehashとか忘れずに。
 
 ### Linux
-Linuxとかを使っている人はいろいろ詳しい人だと思うので細かい事は省きます。
-OSXと大体同じだと思います。
+
+aptなりでRubyいれてくれ
 
 ## 設定
 
