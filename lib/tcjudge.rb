@@ -21,19 +21,18 @@ class TopCoderScraper
  
     @agent = Mechanize.new
 
-    next_page_uri = 'http://apps.topcoder.com/wiki/display/tc/Algorithm+Overview'
+    next_page_uri = 'https://www.topcoder.com/'
     login_page_uri = 'http://community.topcoder.com/tc?&module=Login'
 
     login_page = @agent.get(login_page_uri)
 
-    wiki_page = login_page.form_with(:name => 'frmLogin') do |f|
+    top_page = login_page.form_with(:name => 'frmLogin') do |f|
       f.action = 'http://community.topcoder.com/tc'
-      f['nextpage'] = next_page_uri
       f['username'] = user_name
       f['password'] = password
     end.click_button
 
-    if wiki_page.uri.to_s == next_page_uri
+    if top_page.uri.to_s == next_page_uri
       # succeeded
       @logged_in = true
       return false 

@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name        = 'tcjudge'
-  s.version     = '1.0.0'
+  s.version     = '1.0.1'
   s.executables << 'tcjudge'
-  s.date        = '2015-10-11'
+  s.date        = '2015-11-20'
   s.summary     = 'Judges TopCoder solutions locally'
   s.description = 'tcjudge offers a simple command line tool that judges TopCoder solutions within local environment.'
   s.authors     = ['peryaudo']
