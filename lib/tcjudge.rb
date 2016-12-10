@@ -22,12 +22,12 @@ class TopCoderScraper
     @agent = Mechanize.new
 
     next_page_uri = 'https://www.topcoder.com/'
-    login_page_uri = 'http://community.topcoder.com/tc?&module=Login'
+    login_page_uri = 'https://community.topcoder.com/tc?&module=Login'
 
     login_page = @agent.get(login_page_uri)
 
     top_page = login_page.form_with(:name => 'frmLogin') do |f|
-      f.action = 'http://community.topcoder.com/tc'
+      f.action = 'https://community.topcoder.com/tc'
       f['username'] = user_name
       f['password'] = password
     end.click_button
@@ -153,7 +153,7 @@ class TopCoderScraper
       return @problem_page_uri_cache[problem_name]
     end
 
-    @agent.get('http://community.topcoder.com/tc?module=ProblemArchive&class=' + problem_name) do |page|
+    @agent.get('https://community.topcoder.com/tc?module=ProblemArchive&class=' + problem_name) do |page|
       return @problem_page_uri_cache[problem_name] =
         page.root.xpath(
           '//tr[normalize-space(td/a/text())="' + problem_name +
